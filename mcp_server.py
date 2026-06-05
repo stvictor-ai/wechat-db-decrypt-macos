@@ -25,6 +25,8 @@ from datetime import datetime
 
 from fastmcp import FastMCP
 
+import wechat_data
+
 # ── Configuration ────────────────────────────────────────────────────────────
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -470,63 +472,20 @@ def search_messages(keyword: str, limit: int = 20) -> str:
     if not keyword:
         return "请提供搜索关键词"
 
-    names = _get_contacts()
-    results = []
-
-    for db_path in _get_msg_dbs():
-        if len(results) >= limit:
-            break
-
-        conn = sqlite3.connect(db_path)
-        try:
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'Msg_%'"
-            ).fetchall()
-
-            # Build reverse hash -> username mapping
-            name2id = {}
-            try:
-                for (uname,) in conn.execute("SELECT user_name FROM Name2Id"):
-                    h = hashlib.md5(uname.encode()).hexdigest()
-                    name2id[f"Msg_{h}"] = uname
-            except Exception:
-                pass
-
-            for (tname,) in tables:
-                if len(results) >= limit:
-                    break
-                username = name2id.get(tname, "")
-                is_group = "@chatroom" in username
-                display = names.get(username, username) if username else tname
-
-                try:
-                    rows = conn.execute(f"""
-                        SELECT local_type, create_time, message_content
-                        FROM [{tname}]
-                        WHERE message_content LIKE ?
-                        ORDER BY create_time DESC
-                        LIMIT ?
-                    """, (f"%{keyword}%", limit - len(results))).fetchall()
-                except Exception:
-                    continue
-
-                for local_type, ts, content in rows:
-                    text = _parse_message(content, local_type, is_group, names)
-                    time_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
-                    entry = f"[{time_str}] [{display}] {text}"
-                    if len(entry) > 300:
-                        entry = entry[:300] + "..."
-                    results.append((ts, entry))
-        finally:
-            conn.close()
-
-    results.sort(key=lambda x: x[0], reverse=True)
-    entries = [r[1] for r in results[:limit]]
+    results, method = wechat_data.search_messages(keyword, limit, DECRYPTED_DIR)
+    entries = []
+    for item in results:
+        display = item["display_name"] or item["username"]
+        sender = f"{item['sender']}: " if item.get("sender") else ""
+        entry = f"[{item['time']}] [{display}] {sender}{item['text']}"
+        if len(entry) > 300:
+            entry = entry[:300] + "..."
+        entries.append(entry)
 
     if not entries:
         return f'未找到包含 "{keyword}" 的消息'
 
-    return f'搜索 "{keyword}" 找到 {len(entries)} 条结果:\n\n' + "\n\n".join(entries)
+    return f'搜索 "{keyword}" 找到 {len(entries)} 条结果（{method}）:\n\n' + "\n\n".join(entries)
 
 
 @mcp.tool()

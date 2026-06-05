@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>微信聊天档案</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app">
+    <nav class="navrail" aria-label="主导航">
+      <div class="window-dots" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="nav-avatar"></div>
+      <div class="nav-stack">
+        <button class="nav-icon active" data-view="overview" title="年度总览">
+          <span>◉</span><b>总览</b>
+        </button>
+        <button class="nav-icon" data-view="chat" title="聊天">
+          <span>●</span><b>聊天</b>
+        </button>
+        <button class="nav-icon" data-view="memory" title="回忆搜索">
+          <span>⌕</span><b>回忆</b>
+        </button>
+        <button class="nav-icon" data-view="report" title="关系报告">
+          <span>◎</span><b>报告</b>
+        </button>
+        <button class="nav-icon" data-view="ai" title="AI 问答">
+          <span>✦</span><b>AI</b>
+        </button>
+        <button class="nav-icon" data-view="privacy" title="隐私安全">
+          <span>□</span><b>隐私</b>
+        </button>
+      </div>
+      <button class="nav-icon nav-menu" data-view="roadmap" title="功能路线">
+        <span>≡</span><b>路线</b>
+      </button>
+    </nav>
+
+    <aside class="sidebar">
+      <header class="topbar">
+        <div>
+          <h1>联系人</h1>
+          <p id="status">正在载入</p>
+        </div>
+        <button id="refreshBtn" class="icon-btn" title="刷新">↻</button>
+      </header>
+
+      <div class="searchbox">
+        <input id="contactSearch" type="search" placeholder="查找联系人或微信号" autocomplete="off">
+        <button id="searchBtn" title="搜索">⌕</button>
+      </div>
+
+      <section id="contactList" class="list"></section>
+    </aside>
+
+    <section class="workspace">
+      <header class="profile-header">
+        <div class="profile-title">
+          <span id="profileAvatar" class="avatar large">?</span>
+          <div>
+            <h2 id="chatTitle">选择一个联系人</h2>
+            <p id="chatMeta">聊天记录与关系侧记会显示在这里</p>
+          </div>
+        </div>
+        <div class="filters">
+          <span id="snapshotBadge" class="snapshot-badge">正在检查快照</span>
+          <button id="snapshotRefreshBtn" class="icon-btn snapshot-refresh-btn" title="刷新聊天快照">↻</button>
+          <input id="startDate" type="date" title="开始日期">
+          <input id="endDate" type="date" title="结束日期">
+          <select id="limitSelect" title="消息数量">
+            <option value="80">80</option>
+            <option value="200">200</option>
+            <option value="500">500</option>
+          </select>
+        </div>
+      </header>
+
+      <section id="overviewView" class="workspace-view active overview-view">
+        <div class="overview-scroll">
+          <section class="overview-hero">
+            <div>
+              <p>年度总览</p>
+              <h3 id="overviewTitle">正在生成关系地图</h3>
+              <span id="overviewNote">基于最近活跃联系人做本地分析。</span>
+            </div>
+            <div class="overview-controls">
+              <select id="overviewYear" title="年份"></select>
+              <button id="overviewRefreshBtn" class="plain-btn">刷新</button>
+            </div>
+          </section>
+
+          <section id="overviewContent" class="overview-content empty">
+            <span>正在生成年度总览</span>
+          </section>
+        </div>
+      </section>
+
+      <section id="chatView" class="workspace-view">
+      <section class="content-grid">
+        <section class="chat-panel">
+          <div class="panel-head">
+            <h3>聊天档案</h3>
+            <p id="messageMeta"></p>
+          </div>
+          <div id="messages" class="messages empty">
+            <span>暂无内容</span>
+          </div>
+          <div class="guide-panel">
+            <strong>使用说明</strong>
+            <span>左侧选择联系人；上方选择日期后，聊天记录和右侧关系分析会一起按日期刷新。</span>
+          </div>
+        </section>
+
+        <aside class="analysis-panel">
+          <div class="panel-head">
+            <h3>关系分析</h3>
+            <p id="analysisMeta"></p>
+          </div>
+          <div id="analysis" class="analysis empty">
+            <span>选择联系人后生成分析</span>
+          </div>
+        </aside>
+      </section>
+      </section>
+
+      <section id="memoryView" class="workspace-view memory-view">
+        <div class="memory-scroll">
+          <section class="memory-hero">
+            <div>
+              <p>回忆搜索</p>
+              <h3>从所有联系人里找一句话</h3>
+              <span>适合找约定、地址、文件、某段争论、某个突然想起的关键词。</span>
+            </div>
+            <form id="memoryForm" class="memory-search">
+              <input id="memoryInput" type="search" placeholder="输入关键词，例如：咖啡、合同、地址" autocomplete="off">
+              <button type="submit">搜索</button>
+            </form>
+          </section>
+          <section id="memoryContent" class="memory-content empty">
+            <span>输入关键词后，会在本地聊天快照里搜索。</span>
+          </section>
+        </div>
+      </section>
+
+      <section id="reportView" class="workspace-view report-view">
+        <div class="report-scroll">
+          <section class="report-hero">
+            <div>
+              <p>关系报告</p>
+              <h3 id="reportTitle">选择一个联系人</h3>
+              <span id="reportRange">选择联系人后生成完整报告</span>
+            </div>
+            <button id="reportExportBtn" class="plain-btn" disabled>导出报告</button>
+          </section>
+          <section id="reportContent" class="report-content empty">
+            <span>左侧选择联系人后，这里会生成你和 TA 的关系报告。</span>
+          </section>
+        </div>
+      </section>
+
+      <section id="aiView" class="workspace-view ai-view">
+        <div class="ai-scroll">
+          <section class="ai-hero">
+            <div>
+              <p>AI 问答</p>
+              <h3 id="aiContactTitle">选择一个联系人后提问</h3>
+              <span>AI 基于本地关系统计数据回答，不会上传你的聊天记录。</span>
+            </div>
+          </section>
+
+          <section class="ai-setup">
+            <div class="ai-key-row">
+              <select id="aiProvider">
+                <option value="anthropic">Anthropic Claude</option>
+                <option value="openai">OpenAI</option>
+              </select>
+              <input id="aiKeyInput" type="password" placeholder="API Key（sk-ant-… 或 sk-…）" autocomplete="off" spellcheck="false">
+              <button id="aiKeySave" class="plain-btn">保存</button>
+            </div>
+            <p class="ai-disclosure">发送给 AI 的内容：<b>关系统计 + 最近 25 条文本消息</b>（不含图片/语音/文件）。API Key 只在本机使用，不会被存储到服务端。</p>
+          </section>
+
+          <section id="aiThread" class="ai-thread">
+            <div class="ai-empty">选择左侧联系人后，可以问 AI 关于这段关系的任何问题。</div>
+          </section>
+
+          <form id="aiForm" class="ai-input-row">
+            <input id="aiInput" type="text" placeholder="例如：我们最近为什么聊少了？这段关系的特点是什么？" autocomplete="off">
+            <button type="submit" id="aiSendBtn" disabled>发送</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="privacyView" class="workspace-view privacy-view">
+        <div class="privacy-scroll">
+          <section class="privacy-hero">
+            <div>
+              <p>隐私安全中心</p>
+              <h3>本地优先，谨慎公开</h3>
+            </div>
+            <button id="privacyRefreshBtn" class="plain-btn">重新检查</button>
+          </section>
+          <section id="privacyContent" class="privacy-content empty">
+            <span>正在检查本地安全状态</span>
+          </section>
+        </div>
+      </section>
+
+      <section id="roadmapView" class="workspace-view roadmap-view">
+        <div class="roadmap-scroll">
+          <section class="roadmap-hero">
+            <div>
+              <p>功能路线</p>
+              <h3>核心功能已全部完成</h3>
+              <span>当前已完成 17 个产品模块，以下是可继续迭代的可选方向。</span>
+            </div>
+            <div class="roadmap-counts">
+              <strong>17</strong><span>已完成</span>
+              <strong>0</strong><span>必做</span>
+            </div>
+          </section>
+
+          <section class="roadmap-grid">
+            <section class="roadmap-card done">
+              <h4>已经完成</h4>
+              <ul>
+                <li>普通用户桌面启动器</li>
+                <li>本地 Web UI</li>
+                <li>联系人列表与联系人搜索</li>
+                <li>聊天记录浏览</li>
+                <li>回忆搜索</li>
+                <li>关系报告</li>
+                <li>深度社交关系解读</li>
+                <li>Markdown 关系报告导出</li>
+                <li>总览与年度报告</li>
+                <li>隐私安全中心</li>
+                <li>快照新鲜度提示</li>
+                <li>首次使用引导</li>
+                <li>快照刷新体验</li>
+                <li>媒体消息解析</li>
+                <li>Demo 数据与开源展示</li>
+                <li>本地 AI 问答</li>
+                <li>安全增强（一键清理）</li>
+              </ul>
+            </section>
+
+            <section class="roadmap-card todo">
+              <h4>可选迭代</h4>
+              <ol>
+                <li>密钥加密保存</li>
+                <li>导出前二次确认</li>
+                <li>敏感字段打码</li>
+                <li>发布前检查工具</li>
+              </ol>
+            </section>
+          </section>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="wipeModal" class="modal-overlay" hidden>
+    <div class="modal">
+      <h3>清理解密数据</h3>
+      <p>这将删除 <code>decrypted/</code> 和 <code>exported/</code> 目录下的所有本地文件，操作不可撤销。</p>
+      <p>在下方输入 <code>WIPE</code> 确认：</p>
+      <input id="wipeConfirmInput" type="text" placeholder="WIPE" autocomplete="off" spellcheck="false">
+      <div class="modal-actions">
+        <button id="wipeConfirmBtn" class="danger-btn" disabled>确认清理</button>
+        <button id="wipeCancelBtn" class="plain-btn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

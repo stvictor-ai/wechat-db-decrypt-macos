@@ -2,11 +2,36 @@
 .mypy_cache
 __pycache__
 *.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+.env
+.venv/
+venv/
+
+# Local agent/tooling transcripts may contain private data
+.claude/
+.agents/
+.codex/
 
 # Sensitive data
 wechat_keys.json
 wechat_keys*.json
+*.key
+*.pem
 
 # Output directories
 decrypted/
 exported/
+demo/
+
+# Database snapshots and local runtime files
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.log
+
+# Generated screenshots must use synthetic data before being committed
+screenshots/

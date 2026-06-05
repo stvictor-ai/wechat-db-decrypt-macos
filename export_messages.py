@@ -21,6 +21,8 @@ import argparse
 import glob
 from datetime import datetime
 
+import wechat_data
+
 
 DECRYPTED_DIR = "decrypted"
 MSG_TYPE_MAP = {
@@ -358,35 +360,25 @@ def main():
     if args.search:
         # Search across all conversations
         print(f"[*] Searching for '{args.search}'...\n")
-        username_to_db = collect_all_usernames(msg_dbs)
-        found = 0
-        for username, db_path in username_to_db.items():
-            table = username_to_table(username)
-            is_group = "@chatroom" in username
-            conn = sqlite3.connect(db_path)
-            try:
-                exists = conn.execute(
-                    "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?",
-                    (table,),
-                ).fetchone()[0]
-                if not exists:
-                    continue
-                rows = conn.execute(
-                    f"SELECT local_id, local_type, create_time, real_sender_id, "
-                    f"message_content, source FROM [{table}] "
-                    f"WHERE message_content LIKE ? ORDER BY create_time DESC LIMIT 10",
-                    (f"%{args.search}%",),
-                ).fetchall()
-                if rows:
-                    display = contacts.get(username, username)
-                    print(f"── {display} ({username}) ──")
-                    for r in rows:
-                        print(f"  {format_message(r, is_group, contacts)}")
-                    print()
-                    found += len(rows)
-            finally:
-                conn.close()
-        print(f"[*] Found {found} messages matching '{args.search}'")
+        results, method = wechat_data.search_messages(
+            args.search,
+            args.limit or 100,
+            os.path.abspath(args.dir),
+        )
+
+        grouped = {}
+        for item in results:
+            grouped.setdefault(item["username"], []).append(item)
+
+        for username, items in grouped.items():
+            display = contacts.get(username, username)
+            print(f"── {display} ({username}) ──")
+            for item in items[:10]:
+                sender = f"{item['sender']}: " if item.get("sender") else ""
+                print(f"  [{item['time']}] {sender}{item['text']}")
+            print()
+
+        print(f"[*] Found {len(results)} messages matching '{args.search}' ({method})")
 
     elif args.chat:
         # Export specific chat (with fuzzy matching)
