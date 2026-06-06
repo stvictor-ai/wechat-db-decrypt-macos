@@ -14,8 +14,8 @@ A local-first toolkit for decrypting, browsing, searching, and analyzing WeChat 
 - 🔍 **回忆搜索** — FTS 全文搜索 + 自动回退，跨全部联系人
 - 📊 **关系报告** — 关系类型推断、互动维度、社交洞察、Markdown 导出
 - 🗺️ **年度总览** — 消息量、最活跃联系人、年度热词、互动节奏
-- 🤖 **AI 问答** — 用自己的 API Key 向 AI 提问，基于本地数据回答
-- 🔒 **隐私安全** — 快照新鲜度、密钥安全检查、一键清理解密数据
+- 🤖 **AI 关系深度报告** — 用自己的 API Key，让大模型读真实对话，生成结构化关系分析报告
+- 🔒 **隐私安全** — 快照新鲜度、密钥安全检查、一键清理解密数据、发布前安全检查脚本
 - 🎭 **Demo 模式** — 无需真实数据即可体验所有功能
 - 🖥️ **桌面启动器** — 双击即用，无需终端
 
@@ -93,14 +93,30 @@ start.command           # 直接打开 Web UI
 
 ---
 
-## AI 问答 · AI Q&A
+## AI 关系深度报告 · AI Report
 
-Web UI 中的 **✦ AI** 视图支持向 AI 提问关于某段关系的任何问题。
+Web UI 中的 **✦ AI** 视图是核心 AI 功能入口，提供两种模式：
+
+### 生成关系报告
+
+选择消息采样量（50 / 100 / 200 / 500 条），点击「生成关系报告」，AI 会读取跨时间段的真实对话，生成包含以下章节的深度报告：
+
+- **关系判断** — 关系类型、亲密程度、整体健康度
+- **互动动态** — 谁更主动、话语权分布、情感基调
+- **话题图谱** — 主要聊什么、关键词背后的关系信号
+- **关系走势** — 升温还是降温，有无明显转折点
+- **深层洞察** — 最值得注意的一点，有具体消息证据
+- **建议** — 改善或维护这段关系最重要的一件事
+
+### 追问
+
+报告生成后可在下方继续追问，AI 会结合本地统计数据回答。
+
+### 配置说明
 
 - 支持 **Anthropic Claude** 和 **OpenAI**
-- API Key 填写后保存在本地浏览器（`localStorage`），不存入服务端
-- 发送给 AI 的内容：关系统计数据 + 最近 25 条文本消息，**不含图片/语音/文件原始数据**
-- 所有分析在本机完成，只有你的问题和统计摘要会发给 AI
+- API Key 保存在本地浏览器（`localStorage`），不存入服务端
+- 发送给 AI 的内容：按时间分段采样的文本消息 + 关系统计摘要，**不含图片/语音/文件**
 
 ---
 
@@ -128,7 +144,8 @@ python3 export_messages.py --all
 - **数据不离开本机** — Web UI 绑定在 `127.0.0.1`，默认不可被外部访问
 - **密钥文件不进仓库** — `wechat_keys.json`、`decrypted/`、`exported/` 均在 `.gitignore` 中
 - **一键清理** — Web UI「隐私」页面支持一键删除所有解密数据库
-- **公开前检查** — 不要提交密钥、解密数据库、导出文件或真实聊天截图
+- **发布前检查** — `python3 check_before_publish.py` 扫描敏感文件，可安装为 git pre-commit hook
+- **敏感字段打码** — 联系人列表中的 wxid 和手机号自动打码显示
 
 详见 [SECURITY.md](./SECURITY.md) 和 [DISCLAIMER.md](./DISCLAIMER.md)。
 
@@ -141,8 +158,9 @@ wechat-db-decrypt-macos/
 ├── find_key_memscan.py   # 密钥提取（内存扫描）
 ├── decrypt_db.py         # 数据库解密
 ├── wechat_data.py        # 数据查询核心
-├── web_server.py         # Web UI 服务器
+├── web_server.py         # Web UI 服务器（含 AI 报告 API）
 ├── generate_demo.py      # Demo 数据生成器
+├── check_before_publish.py  # 发布前安全检查
 ├── export_messages.py    # 命令行导出工具
 ├── mcp_server.py         # MCP 工具服务器
 ├── desktop_launcher.py   # 桌面启动器
