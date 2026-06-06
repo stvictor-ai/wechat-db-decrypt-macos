@@ -314,6 +314,111 @@ def build_report_markdown(data):
     return "\n".join(lines)
 
 
+def sample_messages_by_period(contact, total_count, decrypted_dir):
+    """按早/中/近三段采样，返回 (messages_list, analysis_dict)。"""
+    from datetime import timedelta
+    analysis = wechat_data.get_chat_analysis(contact, sample_limit=300, decrypted_dir=decrypted_dir)
+    first_time = analysis.get("first_time") or analysis.get("first_date")
+    last_time  = analysis.get("last_time")  or analysis.get("last_date")
+
+    def _msgs(limit, start=None, end=None):
+        h = wechat_data.get_chat_history(contact, limit, start_date=start, end_date=end, decrypted_dir=decrypted_dir)
+        return [m for m in h.get("messages", []) if m.get("type") == "文本" and m.get("text", "").strip()]
+
+    if not first_time or not last_time or first_time == last_time:
+        return _msgs(total_count)[:total_count], analysis
+
+    fmt = "%Y-%m-%d"
+    try:
+        t0 = datetime.strptime(first_time[:10], fmt)
+        t2 = datetime.strptime(last_time[:10],  fmt)
+    except ValueError:
+        return _msgs(total_count)[:total_count], analysis
+
+    span = max((t2 - t0).days, 1)
+    t1a = (t0 + timedelta(days=span // 3)).strftime(fmt)
+    t1b = (t0 + timedelta(days=2 * span // 3)).strftime(fmt)
+
+    early_n  = max(total_count // 4, 1)
+    mid_n    = max(total_count // 4, 1)
+    recent_n = total_count - early_n - mid_n
+
+    early  = list(reversed(_msgs(early_n,  end=t1a)))
+    middle = list(reversed(_msgs(mid_n,    start=t1a, end=t1b)))
+    recent = list(reversed(_msgs(recent_n, start=t1b)))
+
+    return early + middle + recent, analysis
+
+
+def build_report_prompt(contact_name, analysis, messages):
+    total   = analysis.get("total_messages", 0)
+    days    = analysis.get("active_days", 0)
+    first   = analysis.get("first_time") or analysis.get("first_date", "?")
+    last    = analysis.get("last_time")  or analysis.get("last_date",  "?")
+    mine    = analysis.get("mine_share",  50)
+    theirs  = analysis.get("their_share", 50)
+    profile = analysis.get("relationship_profile") or {}
+    p_label = profile.get("label", "未知")
+    p_conf  = profile.get("confidence", "低")
+    p_sum   = profile.get("summary", "")
+
+    insights = ""
+    if analysis.get("social_insights"):
+        insights = "；".join(
+            f"{i.get('title','')}: {i.get('body','')}"
+            for i in analysis["social_insights"][:3]
+        )
+
+    msg_lines = []
+    for m in messages:
+        sender = "我" if m.get("is_mine") else contact_name
+        text   = (m.get("text") or "").replace("\n", " ")[:150]
+        msg_lines.append(f"[{m.get('time','')}] {sender}：{text}")
+
+    lines = [
+        "你是一位专业的人际关系分析师，擅长从聊天记录中挖掘关系动态。",
+        "以下是用户与联系人的真实聊天记录及互动统计，请你生成一份深度关系分析报告。",
+        "",
+        f"=== 关系统计：我与「{contact_name}」===",
+        f"总消息：{total} 条，活跃 {days} 天，时间跨度 {first} — {last}",
+        f"我发出 {mine}%，对方发出 {theirs}%",
+        f"关系类型：{p_label}（置信度：{p_conf}）",
+        f"统计摘要：{p_sum}",
+    ]
+    if insights:
+        lines.append(f"洞察：{insights}")
+    lines += [
+        "",
+        f"=== 聊天记录（按时间分段采样，共 {len(messages)} 条文本消息）===",
+    ] + msg_lines + [
+        "",
+        "---",
+        "",
+        "请用中文生成一份深度关系分析报告，严格按以下结构输出（每节开头用 ## 标题）：",
+        "",
+        "## 关系判断",
+        "（关系类型、亲密程度、整体健康度，2-3 句）",
+        "",
+        "## 互动动态",
+        "（谁更主动、话语权分布、情感基调、对话节奏）",
+        "",
+        "## 话题图谱",
+        "（主要聊什么，有无回避话题，关键词背后的关系信号）",
+        "",
+        "## 关系走势",
+        "（关系是在升温还是降温？有没有明显转折点或沉默期？）",
+        "",
+        "## 深层洞察",
+        "（最值得注意的一点，用具体消息证据支撑，不过度解读）",
+        "",
+        "## 给你的建议",
+        "（如果想改善或维护这段关系，最重要的一件事）",
+        "",
+        "语言要求：客观有洞察力，不煽情，用第二人称「你」称呼用户，每节 3-5 句话。",
+    ]
+    return "\n".join(lines)
+
+
 def build_ai_context(contact_name, analysis, recent_messages):
     lines = [
         "你是一个帮助用户理解人际关系的助手。",
@@ -357,11 +462,11 @@ def build_ai_context(contact_name, analysis, recent_messages):
     return "\n".join(lines)
 
 
-def call_ai(provider, api_key, system_prompt, question):
+def call_ai(provider, api_key, system_prompt, question, max_tokens=1024):
     if provider == "anthropic":
         payload = {
             "model": "claude-haiku-4-5-20251001",
-            "max_tokens": 1024,
+            "max_tokens": max_tokens,
             "system": system_prompt,
             "messages": [{"role": "user", "content": question}],
         }
@@ -378,7 +483,7 @@ def call_ai(provider, api_key, system_prompt, question):
     elif provider == "openai":
         payload = {
             "model": "gpt-4o-mini",
-            "max_tokens": 1024,
+            "max_tokens": max_tokens,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question},
@@ -447,6 +552,35 @@ class WeChatHandler(BaseHTTPRequestHandler):
                 self._send_json({"success": True, "wiped": wiped})
             except Exception as exc:
                 self._send_json({"success": False, "error": "exception", "message": str(exc)}, 500)
+            return
+
+        if parsed.path == "/api/ai/report":
+            try:
+                body = self._read_body()
+                api_key  = (body.get("api_key")  or "").strip()
+                provider = body.get("provider", "anthropic")
+                contact  = (body.get("contact")  or "").strip()
+                count    = int(body.get("message_count", 100))
+                count    = max(10, min(count, 500))
+                if not api_key:
+                    self._send_json({"success": False, "error": "no_key", "message": "请先填写 API Key"})
+                    return
+                if not contact:
+                    self._send_json({"success": False, "error": "no_contact", "message": "请先选择联系人"})
+                    return
+                messages, analysis = sample_messages_by_period(contact, count, self.decrypted_dir)
+                contact_name = analysis.get("display_name") or contact
+                system_prompt = build_report_prompt(contact_name, analysis, messages)
+                report = call_ai(provider, api_key, system_prompt,
+                                 "请生成完整的关系分析报告。", max_tokens=3000)
+                self._send_json({
+                    "success":    True,
+                    "report":     report,
+                    "contact":    contact_name,
+                    "sent_count": len(messages),
+                })
+            except Exception as exc:
+                self._send_json({"success": False, "error": "api_error", "message": str(exc)[:400]}, 200)
             return
 
         if parsed.path == "/api/ai/query":

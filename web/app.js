@@ -6,6 +6,7 @@ const state = {
   lastMemoryQuery: "",
   overviewLoaded: false,
   snapshotStatus: null,
+  aiReportCount: 100,
 };
 
 const el = {
@@ -60,6 +61,9 @@ const el = {
   wipeConfirmInput: document.querySelector("#wipeConfirmInput"),
   wipeConfirmBtn: document.querySelector("#wipeConfirmBtn"),
   wipeCancelBtn: document.querySelector("#wipeCancelBtn"),
+  aiReportCard: document.querySelector("#aiReportCard"),
+  aiReportBtn: document.querySelector("#aiReportBtn"),
+  aiReportResult: document.querySelector("#aiReportResult"),
 };
 
 function escapeHtml(value) {
@@ -68,6 +72,22 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function maskId(str) {
+  if (!str) return str;
+  if (str.startsWith('wxid_')) {
+    const body = str.slice(5);
+    if (body.length <= 5) return str;
+    return 'wxid_' + body.slice(0, 2) + '***' + body.slice(-3);
+  }
+  if (/^1[3-9]\d{9}$/.test(str)) {
+    return str.slice(0, 3) + '****' + str.slice(-4);
+  }
+  if (str.length > 6) {
+    return str.slice(0, 2) + '***' + str.slice(-2);
+  }
+  return str;
 }
 
 function api(path) {
@@ -135,7 +155,7 @@ function renderContacts(items) {
             <span class="name">${escapeHtml(name)}</span>
             <span class="meta">${escapeHtml(item.last_time || (item.is_group ? "群聊" : "联系人"))}</span>
           </span>
-          <span class="summary">${escapeHtml(subline || username)}</span>
+          <span class="summary">${escapeHtml(subline || maskId(username))}</span>
         </span>
       </button>
     `;
@@ -908,13 +928,16 @@ function saveAiKey() {
 function refreshAiContactTitle() {
   const contact = state.contacts.find((c) => c.username === state.activeUsername);
   const name = contact?.display_name || state.activeUsername;
+  const hasKey = !!localStorage.getItem(AI_KEY_STORAGE);
+  const ready = !!(state.activeUsername && hasKey);
   if (state.activeUsername) {
     el.aiContactTitle.textContent = `关于「${name}」`;
-    el.aiSendBtn.disabled = !localStorage.getItem(AI_KEY_STORAGE);
+    el.aiSendBtn.disabled = !hasKey;
   } else {
-    el.aiContactTitle.textContent = "选择一个联系人后提问";
+    el.aiContactTitle.textContent = "选择一个联系人开始分析";
     el.aiSendBtn.disabled = true;
   }
+  if (el.aiReportBtn) el.aiReportBtn.disabled = !ready;
 }
 
 function appendAiMessage(role, text, isError = false) {
@@ -969,6 +992,68 @@ async function sendAiQuery(event) {
   }
 }
 
+function selectReportCount(count) {
+  state.aiReportCount = count;
+  document.querySelectorAll(".ai-count-btn").forEach((btn) => {
+    btn.classList.toggle("active", Number(btn.dataset.count) === count);
+  });
+}
+
+function renderReportText(text) {
+  return text
+    .split("\n")
+    .map((line) => {
+      if (/^## (.+)/.test(line)) {
+        return `<h4 class="ai-report-heading">${escapeHtml(line.slice(3))}</h4>`;
+      }
+      const escaped = escapeHtml(line).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+      return escaped ? `<p>${escaped}</p>` : "";
+    })
+    .join("");
+}
+
+async function generateAiReport() {
+  if (!state.activeUsername) return;
+  const apiKey = localStorage.getItem(AI_KEY_STORAGE) || "";
+  if (!apiKey) { alert("请先填写并保存 API Key。"); return; }
+
+  el.aiReportBtn.disabled = true;
+  el.aiReportBtn.textContent = "生成中…";
+  el.aiReportResult.hidden = false;
+  el.aiReportResult.innerHTML = `<div class="ai-report-loading">正在读取对话并分析，通常需要 15-30 秒…</div>`;
+
+  try {
+    const res = await fetch("/api/ai/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contact: state.activeUsername,
+        message_count: state.aiReportCount,
+        api_key: apiKey,
+        provider: el.aiProvider.value,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      el.aiReportResult.innerHTML =
+        `<div class="ai-report-meta">基于 ${data.sent_count} 条消息 · ${data.contact}</div>` +
+        renderReportText(data.report);
+    } else {
+      el.aiReportResult.innerHTML =
+        `<div class="ai-report-error">${escapeHtml(data.message || "生成失败，请检查 API Key。")}</div>`;
+    }
+  } catch (err) {
+    el.aiReportResult.innerHTML = `<div class="ai-report-error">网络错误：${escapeHtml(err.message)}</div>`;
+  } finally {
+    el.aiReportBtn.disabled = false;
+    el.aiReportBtn.textContent = "重新生成";
+  }
+}
+
+document.querySelectorAll(".ai-count-btn").forEach((btn) => {
+  btn.addEventListener("click", () => selectReportCount(Number(btn.dataset.count)));
+});
+el.aiReportBtn.addEventListener("click", generateAiReport);
 el.aiKeySave.addEventListener("click", saveAiKey);
 el.aiKeyInput.addEventListener("keydown", (e) => { if (e.key === "Enter") saveAiKey(); });
 el.aiForm.addEventListener("submit", sendAiQuery);

@@ -164,9 +164,9 @@
         <div class="ai-scroll">
           <section class="ai-hero">
             <div>
-              <p>AI 问答</p>
-              <h3 id="aiContactTitle">选择一个联系人后提问</h3>
-              <span>AI 基于本地关系统计数据回答，不会上传你的聊天记录。</span>
+              <p>AI 分析</p>
+              <h3 id="aiContactTitle">选择一个联系人开始分析</h3>
+              <span>AI 读取真实对话，生成深度关系报告。API Key 保存在本机，不上传服务端。</span>
             </div>
           </section>
 
@@ -179,15 +179,31 @@
               <input id="aiKeyInput" type="password" placeholder="API Key（sk-ant-… 或 sk-…）" autocomplete="off" spellcheck="false">
               <button id="aiKeySave" class="plain-btn">保存</button>
             </div>
-            <p class="ai-disclosure">发送给 AI 的内容：<b>关系统计 + 最近 25 条文本消息</b>（不含图片/语音/文件）。API Key 只在本机使用，不会被存储到服务端。</p>
+            <p class="ai-disclosure">发送给 AI 的内容：真实文本消息（按时间分段采样）+ 关系统计摘要，不含图片/语音/文件。</p>
           </section>
 
+          <section class="ai-report-card" id="aiReportCard">
+            <div class="ai-report-controls">
+              <span class="ai-report-label">消息采样量</span>
+              <div class="ai-count-group">
+                <button class="ai-count-btn" data-count="50">50 条</button>
+                <button class="ai-count-btn active" data-count="100">100 条</button>
+                <button class="ai-count-btn" data-count="200">200 条</button>
+                <button class="ai-count-btn" data-count="500">500 条</button>
+              </div>
+              <button id="aiReportBtn" class="ai-generate-btn" disabled>生成关系报告</button>
+            </div>
+            <div id="aiReportResult" class="ai-report-result" hidden></div>
+          </section>
+
+          <div class="ai-section-divider">追问</div>
+
           <section id="aiThread" class="ai-thread">
-            <div class="ai-empty">选择左侧联系人后，可以问 AI 关于这段关系的任何问题。</div>
+            <div class="ai-empty">可以针对报告内容追问，或直接提问关于这段关系的任何问题。</div>
           </section>
 
           <form id="aiForm" class="ai-input-row">
-            <input id="aiInput" type="text" placeholder="例如：我们最近为什么聊少了？这段关系的特点是什么？" autocomplete="off">
+            <input id="aiInput" type="text" placeholder="例如：为什么感觉最近疏远了？这段关系最大的问题是什么？" autocomplete="off">
             <button type="submit" id="aiSendBtn" disabled>发送</button>
           </form>
         </div>
@@ -214,10 +230,10 @@
             <div>
               <p>功能路线</p>
               <h3>核心功能已全部完成</h3>
-              <span>当前已完成 17 个产品模块，以下是可继续迭代的可选方向。</span>
+              <span>当前已完成 19 个产品模块，以下是可继续迭代的可选方向。</span>
             </div>
             <div class="roadmap-counts">
-              <strong>17</strong><span>已完成</span>
+              <strong>19</strong><span>已完成</span>
               <strong>0</strong><span>必做</span>
             </div>
           </section>
@@ -243,6 +259,8 @@
                 <li>Demo 数据与开源展示</li>
                 <li>本地 AI 问答</li>
                 <li>安全增强（一键清理）</li>
+                <li>敏感字段打码</li>
+                <li>发布前检查工具</li>
               </ul>
             </section>
 
@@ -251,8 +269,6 @@
               <ol>
                 <li>密钥加密保存</li>
                 <li>导出前二次确认</li>
-                <li>敏感字段打码</li>
-                <li>发布前检查工具</li>
               </ol>
             </section>
           </section>
